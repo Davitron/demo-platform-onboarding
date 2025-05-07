@@ -1,0 +1,28 @@
+apiVersion: apiextensions.crossplane.io/v1
+kind: CompositeResourceDefinition
+metadata:
+  name: xonboardingclaims.demo.platform.bank.com
+spec:
+  group: demo.platform.bank.com
+  names:
+    kind: XOnboardingClaim
+    plural: xonboardingclaims
+  claimNames:
+    kind: OnboardingClaim
+    plural: onboardingclaims
+  versions:
+    - name: v1alpha1
+      served: true
+      referenceable: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                repoURL:
+                  type: string
+                  description: Git repository URL for the application sources.
+              required:
+                - repoURL

@@ -1,0 +1,20 @@
+apiVersion: meta.pkg.crossplane.io/v1
+kind: Configuration
+metadata:
+  name: onboarding-claim
+  annotations:
+    meta.crossplane.io/maintainer: You <segunmatthews@outlook.com>
+    meta.crossplane.io/source: https://Davitronic@dev.azure.com/Davitronic/lonewolf-platform-apps/_git/onboarding-claim
+    meta.crossplane.io/readme: |
+      # Sample Configuration
+      This is a sample configuration for Crossplane.
+      It includes a provider and a function as dependencies.
+      It will be used to compose a configuration for the onboarding-claim.
+      ## Dependencies
+      - [function-kcl](https://xpkg.crossplane.io/crossplane-contrib/function-kcl)
+spec:
+  crossplane:
+    version: ">=v1.19.1"
+  dependsOn:
+    - function: xpkg.crossplane.io/crossplane-contrib/function-kcl
+      version: "v0.11.2"
