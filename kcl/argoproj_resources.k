@@ -1,108 +1,128 @@
+import argoproj.v1alpha1 as argocdv1alpha1
+
+
 oxr = option("params").oxr
 dxr = option("params").dxr
 _name = "-".join(oxr.metadata.name.split("-")[:-1])
+claim_name = oxr?.spec?.claimRef?.name
 _spec = oxr.spec
 
-genericChartUrl = "https://github.com/Davitron/simple-generic-helm-chart.git"
-_items = []
-
-argoProject = {
-    apiVersion = "argoproj.io/v1alpha1"
-    kind = "AppProject"
-    metadata = {
-      name = _name
-      namespace = "argocd"
-      finalizers = ["resources-finalizer.argocd.argoproj.io"]
-    }
-    spec = {
-      description = "Xonboarding claims"
-      sourceRepos = ["*"]
-      destinations = [
-        {
-          name = "*"
-          namespace = "*"
-        }
-      ]
-      clusterResourceWhitelist = [
-        {
-          group = "*"
-          kind = "*"
-        }
-      ]
-      roles = []
-    }
+_addonsMap = {
+    "dayzero" = "demo.platform.bank.com/dayzero-config-enabled"
 }
 
 
-applicationSet = {
-  apiVersion = "argoproj.io/v1alpha1"
-  kind = "ApplicationSet"
-  metadata = {
-    _name = _name
-    namespace = "argocd"
+git_url_base = "https://github.com/Davitron/"
+
+helm_chart_git_repo = git_url_base+"simple-generic-helm-chart.git"
+application_repo = git_url_base+claim_name+".git"
+
+generateAnnotations = lambda addons {
+  {
+    _addonsMap[addon] = "true" for addon, enabled in addons if enabled and _addonsMap[addon]
   }
+}
+
+
+project = argocdv1alpha1.AppProject{
+  metadata = {
+    name = claim_name
+
+    namespace = "argocd",
+    finalizers = ["resources-finalizer.argocd.argoproj.io"]
+  },
   spec = {
-    goTemplate = True
+    description = oxr.spec.description,
+    sourceRepos = ["*"],
+    destinations = [
+      {
+        name = "*",
+        namespace = "*"
+      }
+    ],
+    clusterResourceWhitelist = [
+      {
+        group = "*",
+        kind = "*"
+      }
+    ],
+    roles = []
+  }
+}
+
+
+applicationset = argocdv1alpha1.ApplicationSet{
+  apiVersion = "argoproj.io/v1alpha1",
+  kind = "ApplicationSet",
+  metadata = {
+    name = claim_name,
+    namespace = "argocd",
+    finalizers = ["resources-finalizer.argocd.argoproj.io"]
+  },
+  spec = {
+    goTemplate = True,
     generators = [
       {
-        clusters = {
-          selector = {
-            matchLabels = {
-              "cluster_mode" = "workload"
-            }
-          }
-        }
+        clusters  = {}
       }
-    ]
+    ],
     template = {
       metadata = {
-        name = _name+"-{{ .name }}"
+        name = claim_name + "-{{ .name }}",
         annotations = {
           "argocd.argoproj.io/sync-options" = "SkipDryRunOnMissingResource=true"
         }
-      }
+      },
       spec = {
-        project = _name
+        project = claim_name,
         sources = [
           {
-            repoURL = _spec.repoURL
-            targetRevision = "refs/tags/{{ .name }}"
+            repoURL = application_repo,
+            targetRevision = "HEAD",
             ref = "values"
           },
           {
-            repoURL = genericChartUrl
-            targetRevision = "HEAD"
-            path = "./charts"
+            repoURL = helm_chart_git_repo,
+            targetRevision = "HEAD",
+            path = "./charts",
             helm = {
               valueFiles = [
                 "$values/{{ if eq .name \"in-cluster\" }}.platform/mgnt.yaml{{ else }}.platform/{{ .metadata.labels.env }}.yaml{{ end }}"
               ]
             }
           }
-        ]
+        ],
         destination = {
-          server = "{{ .server }}"
-          namespace = _name
-        }
-
+          server = "{{ .server }}",
+          namespace = claim_name
+        },
         syncPolicy = {
+          managedNamespaceMetadata = {
+            labels = {
+              "argocd.argoproj.io/instance" = claim_name
+            }
+            annotations = {
+              "argocd.argoproj.io/tracking-id": "${claim_name}-{{ .name }}:/Namespace:${claim_name}/${claim_name}",
+              **generateAnnotations(_spec.addons)
+            }
+          },
           automated = {
-            prune = True
+            prune = True,
             selfHeal = True
-          }
+          },
           syncOptions = [
             "CreateNamespace=true",
             "PrunePropagationPolicy=foreground",
             "PruneLast=true",
             "RespectIgnoreDifferences=true",
             "ApplyOutOfSyncOnly=true",
-            "ServerSideApply=true",
-          ]
+            "ServerSideApply=true"
+          ],
           retry = {
-            limit = 5
+            limit = 5,
             backoff = {
-              duration = "5s"
-              maxDuration = "1m"
+              duration = "5s",
+              maxDuration = "1m",
               factor = 2
             }
           }
@@ -112,49 +132,50 @@ applicationSet = {
   }
 }
 
-_items += [{
+project_object = {
   apiVersion = "kubernetes.crossplane.io/v1alpha2"
   kind = "Object"
   metadata = {
-    name = _name + "-project"
+    name = claim_name + "-project"
     annotations = {
-      "crossplane.io/external-name" = _name
+      "crossplane.io/external-name" = claim_name
+      "krm.kcl.dev/composition-resource-name" = "project"
     }
   }
   spec = {
     managementPolicies = ["Observe", "Create", "Update", "Delete"]
     forProvider = {
-      manifest = argoProject
+      manifest = project
     }
     providerConfigRef = {
       name = "provider-kubernetes"
     }
   }
-}]
+}
 
-_items += [{
+
+applicationset_object = {
   apiVersion = "kubernetes.crossplane.io/v1alpha2"
   kind = "Object"
   metadata = {
-    name = _name + "-application-set"
+    name = claim_name + "-applicationset"
     annotations = {
-      "crossplane.io/external-name" = _name
+      "crossplane.io/external-name" = claim_name
+      "krm.kcl.dev/composition-resource-name" = "applicationset"
     }
   }
   spec = {
     managementPolicies = ["Observe", "Create", "Update", "Delete"]
     forProvider = {
-      manifest = applicationSet
+      manifest = applicationset
     }
     providerConfigRef = {
       name = "provider-kubernetes"
     }
   }
-}]
+}
 
-
-
-
-
-
-items = _items
+items = [
+  project_object,
+  applicationset_object
+]

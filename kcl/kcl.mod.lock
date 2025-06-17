@@ -1,0 +1,17 @@
+[dependencies]
+  [dependencies.argoproj]
+    name = "argoproj"
+    full_name = "argoproj_0.2.1"
+    version = "0.2.1"
+    sum = "74UGt03FRZbmyUYnhGc+hKQhchiddANhdMYTFuALsxo="
+    reg = "ghcr.io"
+    repo = "kcl-lang/argoproj"
+    oci_tag = "0.2.1"
+  [dependencies.k8s]
+    name = "k8s"
+    full_name = "k8s_1.31.2"
+    version = "1.31.2"
+    sum = "xBZgPsnpVVyWBpahuPQHReeRx28eUHGFoaPeqbct+vs="
+    reg = "ghcr.io"
+    repo = "kcl-lang/k8s"
+    oci_tag = "1.31.2"

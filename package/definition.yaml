@@ -21,8 +21,11 @@ spec:
             spec:
               type: object
               properties:
-                repoURL:
+                description:
                   type: string
-                  description: Git repository URL for the application sources.
+                addons:
+                  type: object
+                  additionalProperties:
+                    type: boolean
               required:
-                - repoURL
+                - addons
