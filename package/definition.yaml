@@ -1,9 +1,9 @@
 apiVersion: apiextensions.crossplane.io/v1
 kind: CompositeResourceDefinition
 metadata:
-  name: xonboardingclaims.demo.platform.bank.com
+  name: xonboardingclaims.platform.knab.dev
 spec:
-  group: demo.platform.bank.com
+  group: platform.knab.dev
   names:
     kind: XOnboardingClaim
     plural: xonboardingclaims
@@ -23,9 +23,12 @@ spec:
               properties:
                 description:
                   type: string
-                addons:
-                  type: object
-                  additionalProperties:
-                    type: boolean
-              required:
-                - addons
+                gitProvider:
+                  type: string
+                  enum:
+                    - github
+                    - azuredevops
+                  default: azuredevops
+                disableDayZero:
+                  type: boolean
+                  default: false
